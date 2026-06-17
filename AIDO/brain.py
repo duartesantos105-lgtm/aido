@@ -10,6 +10,7 @@ import tools
 
 BRAIN_DIR = Path(__file__).parent
 load_dotenv(BRAIN_DIR / ".env")
+load_dotenv(BRAIN_DIR.parent / ".env")
 
 class AIDOBrain:
     """Handles AI chat, memory, web search, and code self-modification."""
