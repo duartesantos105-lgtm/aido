@@ -94,13 +94,35 @@ class AIDOBrain:
 
     def get_memory_context(self, query):
         """Retrieve relevant memories for the given query."""
-        try:
-            results = self.memory.search(query=query, user_id="duarte_001", limit=5)
-            if results:
-                return "\n".join(f"- {m['memory']}" for m in results if "memory" in m)
-        except Exception:
-            pass
+        queries = [query, "about me", "user information", "facts about user", "name",
+                   "preferences", "history", "personal details"]
+        seen = set()
+        memories = []
+        for q in queries:
+            try:
+                results = self.memory.search(query=q, user_id="duarte_001", limit=5)
+                if results:
+                    for m in results:
+                        mem = m.get("memory", "")
+                        if mem and mem not in seen:
+                            seen.add(mem)
+                            memories.append(mem)
+            except Exception as e:
+                print(f"[mem0] search error for '{q}': {e}")
+        if memories:
+            return "\n".join(f"- {m}" for m in memories)
         return ""
+
+    def save_memory(self, text):
+        """Save important facts to long-term memory explicitly."""
+        try:
+            self.memory.add(messages=[
+                {"role": "system", "content": f"Save this information: {text}"}
+            ], user_id="duarte_001")
+            return True
+        except Exception as e:
+            print(f"[mem0] save error: {e}")
+            return False
 
     # ── Tool detection ────────────────────────────────────────────────────
 
@@ -237,11 +259,15 @@ class AIDOBrain:
 
                 try:
                     self.memory.add(
-                        messages=[{"role": "user", "content": command}, {"role": "assistant", "content": clean_text}],
+                        messages=[
+                            {"role": "user", "content": command},
+                            {"role": "assistant", "content": clean_text}
+                        ],
                         user_id="duarte_001",
+                        infer=True,
                     )
-                except Exception:
-                    pass
+                except Exception as e:
+                    print(f"[mem0] store error: {e}")
 
                 on_complete_callback()
 
