@@ -177,7 +177,7 @@ class HUDrings(Canvas):
         ring_specs = [
             (min(cx, cy) * 0.92, 220, ACCENT, self._angles[0]),
             (min(cx, cy) * 0.78, 160, SUCCESS, self._angles[1]),
-            (min(cx, cy) * 0.64, 260, f"{ACCENT}88", self._angles[2]),
+            (min(cx, cy) * 0.64, 260, ACCENT2, self._angles[2]),
             (min(cx, cy) * 0.50, 140, ORANGE, self._angles[3]),
         ]
         for r, extent, color, angle in ring_specs:
@@ -188,11 +188,11 @@ class HUDrings(Canvas):
         # Core
         core_r = min(cx, cy) * 0.28
         self.create_oval(cx - core_r, cy - core_r, cx + core_r, cy + core_r,
-                         outline=f"{ACCENT}66", width=1)
+                         outline=ACCENT2, width=1)
         inner_r = core_r * 0.65
         c_b = 0.06 + b * 0.12
         self.create_oval(cx - inner_r, cy - inner_r, cx + inner_r, cy + inner_r,
-                         fill=f"#00D4FF" + format(int(c_b * 255), '02x'),
+                         fill="#002A3A",
                          outline=ACCENT, width=1)
         dot_r = core_r * 0.18
         dot_b = 0.5 + b * 0.5
@@ -227,9 +227,9 @@ class ScanOverlay(Canvas):
         w, h = self.winfo_width() or 1, self.winfo_height() or 1
         self._scan_x = (self._scan_x + 4) % (w + 40)
         self.create_line(self._scan_x - 60, 0, self._scan_x + 60, h,
-                         fill=f"#00D4FF22", width=1)
+                         fill="#00D4FF", width=1, stipple="gray25")
         self.create_line(self._scan_x, 0, self._scan_x + 2, h,
-                         fill=f"#00D4FF44", width=1)
+                         fill="#00D4FF", width=1, stipple="gray50")
         self._job = self.after(30, self._animate)
 
 
@@ -822,7 +822,7 @@ class AIDOApp(ctk.CTk):
         row = 2
         self._section_label(right, "VALIDATION", row)
         row = 3
-        val_b = ctk.CTkFrame(right, fg_color=BG3, corner_radius=6, border_width=1, border_color="#00FF8833")
+        val_b = ctk.CTkFrame(right, fg_color=BG3, corner_radius=6, border_width=1, border_color="#00FF88")
         val_b.grid(row=row, column=0, padx=10, pady=(0, 8), sticky="ew")
         ctk.CTkLabel(val_b, text="PROP CHECK", font=("Courier New", 8),
                      text_color=ACCENT).pack(anchor="w", padx=10, pady=(6, 2))
