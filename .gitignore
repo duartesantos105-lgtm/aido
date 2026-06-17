@@ -16,6 +16,9 @@ __pycache__/
 Thumbs.db
 .DS_Store
 
+# Local user facts
+user_facts.json
+
 # IDE/editor files
 .vscode/
 .idea/

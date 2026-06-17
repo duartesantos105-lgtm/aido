@@ -1,6 +1,7 @@
 """AIDO Brain — Core AI logic. Connects to Groq API for chat, manages memory and self-evolution."""
 import os
 import re
+import json
 from pathlib import Path
 from threading import Thread
 from groq import Groq
@@ -11,6 +12,8 @@ import tools
 BRAIN_DIR = Path(__file__).parent
 load_dotenv(BRAIN_DIR / ".env")
 load_dotenv(BRAIN_DIR.parent / ".env")
+
+FACTS_FILE = BRAIN_DIR / "user_facts.json"
 
 class AIDOBrain:
     """Handles AI chat, memory, web search, and code self-modification."""
@@ -92,26 +95,65 @@ class AIDOBrain:
     def init_model(self):
         """Placeholder — model initialisation not needed for Groq API."""
 
+    # ── Local facts (JSON fallback) ──────────────────────────────────
+
+    def _load_facts(self):
+        """Load local facts from JSON file."""
+        if FACTS_FILE.exists():
+            try:
+                return json.loads(FACTS_FILE.read_text(encoding="utf-8"))
+            except Exception:
+                return {}
+        return {}
+
+    def _save_facts(self, facts):
+        """Save local facts to JSON file."""
+        FACTS_FILE.write_text(json.dumps(facts, indent=2, ensure_ascii=False), encoding="utf-8")
+
+    def add_fact(self, key, value):
+        """Store a local fact (e.g. name, preferences)."""
+        facts = self._load_facts()
+        facts[key] = value
+        self._save_facts(facts)
+        print(f"[facts] saved: {key} = {value}")
+
+    def get_facts_context(self):
+        """Return all local facts as formatted string."""
+        facts = self._load_facts()
+        if not facts:
+            return ""
+        return "\n".join(f"- {k}: {v}" for k, v in facts.items())
+
     def get_memory_context(self, query):
-        """Retrieve relevant memories for the given query."""
+        """Retrieve relevant memories from mem0 and local facts."""
+        local_facts = self.get_facts_context()
+
         queries = [query, "about me", "user information", "facts about user", "name",
                    "preferences", "history", "personal details"]
+        facts = self._load_facts()
+        if "nome" in facts:
+            queries.append(facts["nome"])
+
         seen = set()
         memories = []
         for q in queries:
             try:
-                results = self.memory.search(query=q, filters={"user_id": "duarte_001"}, limit=5)
-                if results:
-                    for m in results:
+                result = self.memory.search(query=q, filters={"user_id": "duarte_001"}, limit=10)
+                if result and isinstance(result, dict):
+                    for m in result.get("results", []):
                         mem = m.get("memory", "")
                         if mem and mem not in seen:
                             seen.add(mem)
                             memories.append(mem)
             except Exception as e:
                 print(f"[mem0] search error for '{q}': {e}")
+
+        result = ""
+        if local_facts:
+            result += "### Local Facts About You\n" + local_facts + "\n\n"
         if memories:
-            return "\n".join(f"- {m}" for m in memories)
-        return ""
+            result += "### Memories from Cloud\n" + "\n".join(f"- {m}" for m in memories)
+        return result
 
     def save_memory(self, text):
         """Save important facts to long-term memory explicitly."""
@@ -180,8 +222,10 @@ class AIDOBrain:
         if not name_match:
             name_match = re.search(r"(?:chamo-me|chamou?\s*-\s*me|my name is|i'?m? called)\s+(\w+)", lower_cmd, re.IGNORECASE)
         if name_match:
-            self.save_memory(f"O nome do utilizador é {name_match.group(1)}")
-            print(f"[mem0] auto-saved user name: {name_match.group(1)}")
+            name = name_match.group(1)
+            self.save_memory(f"O nome do utilizador é {name}")
+            self.add_fact("nome", name)
+            print(f"[facts] auto-saved user name: {name}")
 
         def thread_func():
             """Run Groq API call in a separate thread to keep UI responsive."""
