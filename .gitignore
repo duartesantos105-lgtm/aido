@@ -1,0 +1,21 @@
+# Environment variables (API keys, secrets)
+.env
+
+# Authentication data
+auth.json
+face_*.jpg
+
+# ChromaDB (local vector store)
+chroma_db/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# OS files
+Thumbs.db
+.DS_Store
+
+# IDE/editor files
+.vscode/
+.idea/
