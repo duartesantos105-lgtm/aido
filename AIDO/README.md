@@ -1,64 +1,91 @@
-# AIDO - Local AI Assistant
+# AIDO - Advanced Intelligence & Digital Operations
 
-AIDO is a local AI assistant powered by Qwen2.5, designed with precision, intelligence, and subtle personality inspired by HEUSC and JARVIS.
+AIDO is an AI desktop assistant with a cyberpunk UI, powered by **Groq API (Llama 3.3-70B)**. Inspired by HEUSC (The Millionaire Detective) and JARVIS (Marvel).
 
 ## Features
 
-- Natural language command processing
-- Persistent memory using mem0
-- Modular configuration for easy extension
-- Local execution for privacy
+- **AI Chat** with streaming responses via Groq API
+- **Persistent Memory** using mem0 + ChromaDB
+- **Voice Input** (Portuguese PT/BR)
+- **Facial Recognition** login via DeepFace + OpenCV
+- **PC Actions** — open browsers, file explorer, run scripts
+- **Role-Based Access Control** — Guest / User / Sub-Admin / Admin
+- **Self-Evolution** — AIDO can update its own system prompt
+- **Code Self-Modification** — AIDO can propose rewriting its own source code
+- **Wake Word** — requires "AIDO" after inactivity timeout
+- **Cyberpunk UI** — neural network animation, glow effects, dark theme
 
 ## Requirements
 
-- Python 3.8+
-- At least 8GB RAM (16GB+ recommended)
-- GPU recommended for better performance
+- Python 3.10+
+- Groq API key (free at https://console.groq.com)
+- mem0 API key (free at https://mem0.ai)
+- Windows (for PC actions; others limited)
 
 ## Installation
 
-1. Clone or download the repository
-2. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
+```bash
+pip install -r requirements.txt
+```
+
+Copy `.env.example` to `.env` and fill in your API keys:
+```
+GROQ_API_KEY=gsk_your_key_here
+MEM0_API_KEY=m0_your_key_here
+GOOGLE_API_KEY=your_google_api_key_here
+GOOGLE_CSE_ID=your_google_search_engine_id_here
+```
 
 ## Usage
 
-Run the assistant:
+Run from the repo root:
+
 ```bash
-"C:/Users/duart/AppData/Local/Programs/Python/Python311/python.exe" aido.py
+python aido.py
 ```
 
-Or add Python to your PATH to use `python aido.py`.
+Or directly:
 
-**Note**: The first run will download the Qwen2.5-3B model (~6GB), which may take several minutes depending on your internet connection. Subsequent runs will be faster.
+```bash
+python AIDO/ui.py
+```
 
-Interact by starting commands with "AIDO,":
-- "AIDO, analyze this text"
-- "AIDO, check system status"
-- "AIDO, exit" to quit
+Login with default credentials: `duarte` / `admin`
 
-## Configuration
+Interact by saying "AIDO" followed by your command:
+- "AIDO, open browser"
+- "AIDO, what is the weather?"
+- "AIDO, read my files"
 
-The assistant behavior is defined in `aido_system_prompt.txt`. Modify this file to customize personality and capabilities.
+## Admin CLI
 
-## Troubleshooting
+Manage users and permissions:
 
-- **Model loading fails**: The 3B model requires ~8GB RAM. If still failing, try the 1.5B model by changing `model_name` in `aido.py` to `"Qwen/Qwen2.5-1.5B-Instruct"`
-- **Memory issues**: Check mem0 configuration and disk space.
-- **Import errors**: Verify all packages are installed correctly.
+```bash
+python AIDO/admin_cli.py
+```
 
-## Memory System
+## Project Structure
 
-AIDO uses mem0 with a local Chroma vector store for persistent memory. No API key is required for local operation. Memory data is stored in the `./chroma_db` directory.
+```
+├── aido.py                  # Entry point
+├── AIDO/
+│   ├── ui.py                # Main GUI (customtkinter)
+│   ├── brain.py             # AI brain (Groq API)
+│   ├── auth.py              # Authentication & RBAC
+│   ├── tools.py             # Web search, file tools
+│   ├── pc_actions.py        # PC automation
+│   ├── aido_overlay.py      # Fullscreen overlay animation
+│   ├── roles.py             # RBAC system
+│   ├── admin_cli.py         # Admin command-line tool
+│   ├── aido_system_prompt.txt  # AI personality config
+│   ├── requirements.txt     # Python dependencies
+│   └── roles_config.json    # Role definitions
+```
 
-If you prefer cloud-based memory (e.g., using OpenAI embeddings), set the appropriate environment variables:
-- `OPENAI_API_KEY`: Your OpenAI API key
-- Or other provider keys as supported by mem0
+## Security
 
-Modify the `config` dictionary in `aido.py` to change memory providers.
-
-## License
-
-[Add license if applicable]
+- `.env` is gitignored — never commit API keys
+- `auth.json` is gitignored — created on first run with machine-bound credentials
+- Password changes only allowed on the original machine
+- PC actions require re-authentication

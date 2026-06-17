@@ -1,14 +1,16 @@
 import os
 import re
+from pathlib import Path
 from threading import Thread
 from groq import Groq
 from dotenv import load_dotenv
 from mem0 import MemoryClient
 import tools
 
-load_dotenv()
+BRAIN_DIR = Path(__file__).parent
+load_dotenv(BRAIN_DIR / ".env")
 
-SELF_EVOLUTION_FILE = "self_evolution.txt"
+SELF_EVOLUTION_FILE = str(BRAIN_DIR / "self_evolution.txt")
 
 class AIDOBrain:
     def __init__(self):
@@ -38,7 +40,7 @@ class AIDOBrain:
 
     def load_config(self):
         try:
-            with open('aido_system_prompt.txt', 'r', encoding='utf-8') as f:
+            with open(BRAIN_DIR / 'aido_system_prompt.txt', 'r', encoding='utf-8') as f:
                 content = f.read()
 
             sections = {
@@ -66,8 +68,9 @@ class AIDOBrain:
             if not self.system_prompt:
                 self.system_prompt = "You are AIDO, an advanced AI assistant."
 
-            if os.path.exists(SELF_EVOLUTION_FILE):
-                with open(SELF_EVOLUTION_FILE, 'r', encoding='utf-8') as f:
+            evolution_path = BRAIN_DIR / "self_evolution.txt"
+            if evolution_path.exists():
+                with open(evolution_path, 'r', encoding='utf-8') as f:
                     self.evolution_context = f.read().strip()
 
         except FileNotFoundError:
@@ -125,7 +128,8 @@ class AIDOBrain:
             pass
         if lower_cmd.startswith("rule:"):
             rule_text = command[5:].strip()
-            with open(SELF_EVOLUTION_FILE, "a", encoding="utf-8") as f:
+            evolution_path = BRAIN_DIR / "self_evolution.txt"
+            with open(evolution_path, "a", encoding="utf-8") as f:
                 f.write(f"- {rule_text}\n")
             self.evolution_context += f"\n- {rule_text}"
             on_token_callback(f"Behavioral rule acknowledged: '{rule_text}'.")
@@ -187,7 +191,8 @@ class AIDOBrain:
                     end_idx = buffer.find("]", start_idx)
                     if end_idx != -1:
                         new_rule = buffer[start_idx:end_idx].strip()
-                        with open(SELF_EVOLUTION_FILE, "a", encoding="utf-8") as f:
+                        evolution_path = BRAIN_DIR / "self_evolution.txt"
+                        with open(evolution_path, "a", encoding="utf-8") as f:
                             f.write(f"- {new_rule}\n")
                         self.evolution_context += f"\n- {new_rule}"
                         print(f"\n[🧬 SELF-EVOLVED]: {new_rule}")

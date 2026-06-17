@@ -1,0 +1,8 @@
+{
+  "users": {
+    "duarte": "ADMIN",
+    "joao": "USER",
+    "maria": "SUB_ADMIN",
+    "pedro": "GUEST"
+  }
+}

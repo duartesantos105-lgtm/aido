@@ -81,7 +81,7 @@ class AIDOOverlay:
             pass
 
         sw = self.win.winfo_screenwidth() or 540
-        sh = self.winfo_screenheight() or 160
+        sh = self.win.winfo_screenheight() or 160
         self.win.geometry(f"{sw}x{sh}+0+0+0")
         self.canvas = tk.Canvas(
             self.win,

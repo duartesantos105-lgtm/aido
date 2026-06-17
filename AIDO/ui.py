@@ -11,7 +11,6 @@ from aido_overlay import AIDOOverlay
 import pc_actions
 import auth
 import threading
-import queue
 try:
     import speech_recognition as sr
 except Exception:
