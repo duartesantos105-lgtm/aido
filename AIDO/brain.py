@@ -270,13 +270,27 @@ class AIDOBrain:
                 )
 
                 buffer = ""
+                pending = ""
+
                 for chunk in stream:
                     token = chunk.choices[0].delta.content or ""
                     if token:
                         buffer += token
-                        if "[SELF_CORRECT:" not in buffer and "[CODE_UPDATE:" not in buffer and "[SAVE_MEMORY:" not in buffer:
-                            on_token_callback(token)
-
+                        for ch in token:
+                            if ch == "[":
+                                pending = "["
+                            elif pending:
+                                pending += ch
+                                if ch == "]":
+                                    is_known = any(
+                                        pending.startswith(t)
+                                        for t in ("[SELF_CORRECT:", "[CODE_UPDATE:", "[SAVE_MEMORY:")
+                                    )
+                                    if not is_known:
+                                        on_token_callback(pending)
+                                    pending = ""
+                            else:
+                                on_token_callback(ch)
                 # ── Handle SELF_CORRECT tag ──────────────────────────
                 if "[SELF_CORRECT:" in buffer:
                     start = buffer.find("[SELF_CORRECT:") + len("[SELF_CORRECT:")
