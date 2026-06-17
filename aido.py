@@ -1,8 +1,4 @@
-#!/usr/bin/env python3
-"""
-AIDO - Advanced Intelligence & Digital Operations
-Entry point: Run this file to start the AIDO assistant.
-"""
+"""Entry point for AIDO - Advanced Intelligence & Digital Operations."""
 import sys
 import os
 from pathlib import Path

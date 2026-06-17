@@ -1,3 +1,4 @@
+"""PC automation actions for AIDO — open browsers, explorer, run scripts."""
 import os
 import sys
 import subprocess
@@ -5,6 +6,7 @@ import webbrowser
 import shutil
 from pathlib import Path
 import auth
+
 try:
     import winreg
 except Exception:
@@ -13,7 +15,17 @@ except Exception:
 PROJECT_ROOT = Path(__file__).parent
 
 
+# ── Helpers ───────────────────────────────────────────────────────────────
+
+def _normalize_url(url: str) -> str:
+    if not url:
+        return ""
+    if not url.startswith(("http://", "https://")):
+        return "https://" + url
+    return url
+
 def is_allowed_script(path: str) -> bool:
+    """Ensure a script path is within the project directory."""
     try:
         p = (PROJECT_ROOT / path).resolve()
         return PROJECT_ROOT in p.parents or p == PROJECT_ROOT
@@ -21,36 +33,29 @@ def is_allowed_script(path: str) -> bool:
         return False
 
 
-def _normalize_url(url: str) -> str:
-    if not url:
-        return ""
-    if not (url.startswith("http://") or url.startswith("https://")):
-        return "https://" + url
-    return url
+# ── Opera detection ───────────────────────────────────────────────────────
 
-
-def find_opera_exe() -> str | None:
-    # Explicit override via environment variable
+def find_opera_exe():
+    """Locate the Opera / Opera GX executable via paths, PATH, and registry."""
     env_path = os.environ.get("OPERA_PATH")
     if env_path and os.path.exists(env_path):
         return env_path
 
-    # Common install locations for Opera / Opera GX on Windows
-    possible = []
     local = os.environ.get("LOCALAPPDATA")
-    programfiles = os.environ.get("PROGRAMFILES")
-    programfiles_x86 = os.environ.get("PROGRAMFILES(X86)")
+    pf = os.environ.get("PROGRAMFILES")
+    pf_x86 = os.environ.get("PROGRAMFILES(X86)")
+
+    possible = []
     if local:
         possible += [os.path.join(local, "Programs", "Opera GX", "launcher.exe"),
                      os.path.join(local, "Programs", "Opera", "launcher.exe")]
-    if programfiles:
-        possible += [os.path.join(programfiles, "Opera GX", "launcher.exe"),
-                     os.path.join(programfiles, "Opera", "launcher.exe")]
-    if programfiles_x86:
-        possible += [os.path.join(programfiles_x86, "Opera GX", "launcher.exe"),
-                     os.path.join(programfiles_x86, "Opera", "launcher.exe")]
+    if pf:
+        possible += [os.path.join(pf, "Opera GX", "launcher.exe"),
+                     os.path.join(pf, "Opera", "launcher.exe")]
+    if pf_x86:
+        possible += [os.path.join(pf_x86, "Opera GX", "launcher.exe"),
+                     os.path.join(pf_x86, "Opera", "launcher.exe")]
 
-    # also try system path
     which_path = shutil.which("launcher") or shutil.which("opera") or shutil.which("operagx")
     if which_path:
         return which_path
@@ -59,117 +64,88 @@ def find_opera_exe() -> str | None:
         if p and os.path.exists(p):
             return p
 
-    # Search possible base folders for Opera launcher if not found directly
-    def search_base(base_path):
-        if not base_path or not os.path.isdir(base_path):
+    # Search base folders recursively
+    def search_base(base):
+        if not base or not os.path.isdir(base):
             return None
-        try:
-            for root, dirs, files in os.walk(base_path):
-                if "launcher.exe" in files and "opera" in root.lower():
-                    return os.path.join(root, "launcher.exe")
-        except Exception:
-            return None
+        for root, dirs, files in os.walk(base):
+            if "launcher.exe" in files and "opera" in root.lower():
+                return os.path.join(root, "launcher.exe")
         return None
 
-    for base in [local, programfiles, programfiles_x86]:
+    for base in [local, pf, pf_x86]:
         candidate = search_base(base)
         if candidate:
             return candidate
 
-    # Try Windows registry (if available) for installed Opera products
-    if winreg and os.name == 'nt':
-        def check_uninstall_key(root, subkey):
-            try:
-                key = winreg.OpenKey(root, subkey)
-            except Exception:
-                return None
-
-            try:
-                i = 0
-                while True:
-                    try:
-                        sk = winreg.EnumKey(key, i)
-                    except OSError:
-                        break
-                    try:
-                        appk = winreg.OpenKey(key, sk)
-                    except Exception:
-                        i += 1
-                        continue
-                    try:
-                        name = winreg.QueryValueEx(appk, 'DisplayName')[0]
-                    except Exception:
-                        name = ''
-                    if 'opera' in name.lower():
+    # Registry fallback
+    if winreg and os.name == "nt":
+        for reg_key in [r"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall",
+                        r"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall"]:
+            for hive in [winreg.HKEY_LOCAL_MACHINE, winreg.HKEY_CURRENT_USER]:
+                try:
+                    key = winreg.OpenKey(hive, reg_key)
+                    i = 0
+                    while True:
                         try:
-                            val = winreg.QueryValueEx(appk, 'DisplayIcon')[0]
-                            if val:
-                                candidate = val.split(',')[0]
-                                if os.path.exists(candidate):
-                                    return candidate
+                            sk = winreg.EnumKey(key, i)
+                        except OSError:
+                            break
+                        try:
+                            appk = winreg.OpenKey(key, sk)
+                            name = winreg.QueryValueEx(appk, "DisplayName")[0]
+                            if "opera" in name.lower():
+                                val = winreg.QueryValueEx(appk, "DisplayIcon")[0]
+                                if val:
+                                    candidate = val.split(",")[0]
+                                    if os.path.exists(candidate):
+                                        return candidate
                         except Exception:
                             pass
-                    i += 1
-            finally:
-                try:
-                    winreg.CloseKey(key)
+                        i += 1
                 except Exception:
                     pass
-            return None
-
-        regs = [r"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall",
-                r"SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall"]
-        for reg in regs:
-            for root in [winreg.HKEY_LOCAL_MACHINE, winreg.HKEY_CURRENT_USER]:
-                candidate = check_uninstall_key(root, reg)
-                if candidate:
-                    return candidate
 
     return None
 
 
+# ── Actions ───────────────────────────────────────────────────────────────
+
 def open_browser(url: str, use_opera: bool = False) -> str:
+    """Open the default browser or Opera GX with an optional URL."""
     try:
-        if use_opera and os.name == 'nt':
+        if use_opera and os.name == "nt":
             exe = find_opera_exe()
             if exe:
-                if url:
-                    url = _normalize_url(url)
-                    subprocess.Popen([exe, url])
-                    return f"Opened Opera with {url}"
-                subprocess.Popen([exe])
-                return "Opened Opera GX"
+                target = _normalize_url(url) if url else ""
+                subprocess.Popen([exe, target] if target else [exe])
+                return f"Opened Opera with {url}" if url else "Opened Opera GX"
         if url:
-            url = _normalize_url(url)
-            webbrowser.open_new_tab(url)
+            webbrowser.open_new_tab(_normalize_url(url))
             return f"Opened browser to {url}"
-        try:
-            webbrowser.open_new_tab("about:blank")
-            return "Opened browser to a blank tab"
-        except Exception:
-            webbrowser.open("https://www.google.com")
-            return "Opened browser (default page)"
+        webbrowser.open_new_tab("about:blank")
+        return "Opened browser (blank tab)"
+    except Exception:
+        webbrowser.open("https://www.google.com")
+        return "Opened browser (default page)"
     except Exception as e:
         return f"Failed to open browser: {e}"
 
-
 def open_explorer(path: str) -> str:
+    """Open Windows File Explorer at the given path."""
     try:
         p = Path(path)
         if not p.is_absolute():
             p = (PROJECT_ROOT / p).resolve()
         if not p.exists():
             return f"Path does not exist: {p}"
-        if sys.platform.startswith("win"):
-            os.startfile(str(p))
-        else:
-            subprocess.Popen(["xdg-open", str(p)])
+        os.startfile(str(p)) if sys.platform.startswith("win") else subprocess.Popen(["xdg-open", str(p)])
         return f"Opened explorer at {p}"
     except Exception as e:
         return f"Failed to open explorer: {e}"
 
-
 def run_script(path: str) -> str:
+    """Run a Python script from the project directory."""
     try:
         if not is_allowed_script(path):
             return "Script path not allowed."
@@ -181,15 +157,15 @@ def run_script(path: str) -> str:
     except Exception as e:
         return f"Failed to run script: {e}"
 
-
 def restart_app() -> str:
+    """Restart the AIDO application."""
     try:
-        # Relaunch ui.py using execv
-        python = sys.executable
-        os.execv(python, [python, str(PROJECT_ROOT / "ui.py")])
+        os.execv(sys.executable, [sys.executable, str(PROJECT_ROOT / "ui.py")])
     except Exception as e:
         return f"Failed to restart app: {e}"
 
+
+# ── Action registry ───────────────────────────────────────────────────────
 
 ALLOWED_ACTIONS = {
     "open_browser": open_browser,
@@ -199,9 +175,8 @@ ALLOWED_ACTIONS = {
     "restart_app": restart_app,
 }
 
-
 def perform_action(action: str, arg: str, username: str, password: str) -> str:
-    # Security: only allow on home machine
+    """Execute a PC action after authentication."""
     if not auth.is_home_machine():
         return "Action not allowed on this machine."
     if not auth.verify_login(username, password):
