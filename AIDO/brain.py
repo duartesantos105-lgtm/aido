@@ -100,7 +100,7 @@ class AIDOBrain:
         memories = []
         for q in queries:
             try:
-                results = self.memory.search(query=q, user_id="duarte_001", limit=5)
+                results = self.memory.search(query=q, filters={"user_id": "duarte_001"}, limit=5)
                 if results:
                     for m in results:
                         mem = m.get("memory", "")
@@ -118,7 +118,7 @@ class AIDOBrain:
         try:
             self.memory.add(messages=[
                 {"role": "system", "content": f"Save this information: {text}"}
-            ], user_id="duarte_001")
+            ], user_id="duarte_001", infer=True)
             return True
         except Exception as e:
             print(f"[mem0] save error: {e}")
@@ -175,6 +175,14 @@ class AIDOBrain:
             on_complete_callback()
             return
 
+        # ── Auto-save user facts ─────────────────────────────────────
+        name_match = re.search(r"(?:o\s*)?meu\s*nome\s*(?:e|é)\s*(\w+)", lower_cmd)
+        if not name_match:
+            name_match = re.search(r"(?:chamo-me|chamou?\s*-\s*me|my name is|i'?m? called)\s+(\w+)", lower_cmd, re.IGNORECASE)
+        if name_match:
+            self.save_memory(f"O nome do utilizador é {name_match.group(1)}")
+            print(f"[mem0] auto-saved user name: {name_match.group(1)}")
+
         def thread_func():
             """Run Groq API call in a separate thread to keep UI responsive."""
             try:
@@ -193,7 +201,8 @@ class AIDOBrain:
                 if self.response_patterns:
                     parts.extend(["\n\n### Response Style Guidelines\n", self.response_patterns])
                 if memory_context:
-                    parts.extend(["\n\n### Relevant Context from Memory\n", memory_context])
+                    parts.extend(["\n\n### Relevant Context from Memory\n", memory_context,
+                                  "\nUse the above memories in your response. If the user asks about something already in memory, respond naturally as if you remember."])
                 if search_context:
                     parts.extend(["\n\n### Tool Results\n", search_context, "\nUse the above tool results accurately."])
                 if file_context:
@@ -235,6 +244,15 @@ class AIDOBrain:
                             f.write(f"- {new_rule}\n")
                         self.evolution_context += f"\n- {new_rule}"
 
+                # ── Handle SAVE_MEMORY tag ──────────────────────────
+                if "[SAVE_MEMORY:" in buffer:
+                    start = buffer.find("[SAVE_MEMORY:") + len("[SAVE_MEMORY:")
+                    end = buffer.find("]", start)
+                    if end != -1:
+                        fact = buffer[start:end].strip()
+                        self.save_memory(fact)
+                        print(f"[mem0] saved fact: {fact}")
+
                 # ── Handle CODE_UPDATE tag ───────────────────────────
                 if "[CODE_UPDATE:" in buffer:
                     match = re.search(r"\[CODE_UPDATE:\s*(.*?)\]", buffer, re.DOTALL)
@@ -250,7 +268,7 @@ class AIDOBrain:
                     on_token_callback(buffer)
 
                 # Strip system tags before storing in history
-                clean_text = re.sub(r"\[(SELF_CORRECT|CODE_UPDATE):.*?\]", "", buffer, flags=re.DOTALL).strip()
+                clean_text = re.sub(r"\[(SELF_CORRECT|CODE_UPDATE|SAVE_MEMORY):.*?\]", "", buffer, flags=re.DOTALL).strip()
                 if "[CODE_UPDATE:" in clean_text:
                     clean_text = clean_text.split("[CODE_UPDATE:")[0].strip()
 
