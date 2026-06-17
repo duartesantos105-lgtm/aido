@@ -226,6 +226,52 @@ class AIDOBrain:
         if calc_match:
             return tools.calculate(calc_match.group(1))
 
+        # App launcher
+        if any(w in q for w in ["abrir app", "open app", "launch app", "abrir programa", "open program", "iniciar"]):
+            for word in ["abrir", "open", "launch", "app", "programa", "program", "iniciar"]:
+                q = q.replace(word, "")
+            app_name = q.strip()
+            if app_name:
+                return tools.launch_app(app_name)
+        app_match = re.search(r'(?:abre|abrir|open|launch)\s+(?:o\s+)?(?:app|programa|program)?\s*[""]?(.+?)[""]?$', q)
+        if app_match:
+            return tools.launch_app(app_match.group(1).strip())
+
+        # List available apps
+        if any(w in q for w in ["list apps", "listar apps", "available apps", "apps disponiveis", "que apps"]):
+            return tools.list_apps()
+
+        # File management
+        if any(w in q for w in ["list dir", "listar pasta", "list folder", "mostrar pasta", "whats in", "o que tem em", "mostrar diretorio", "list directory"]):
+            path_match = re.search(r'(?:pasta|folder|diretorio|directory|em|in)\s+[""]?(.+?)[""]?(?:\s|$)', q)
+            if path_match:
+                return tools.list_directory(path_match.group(1).strip())
+            return tools.list_directory(".")
+
+        if "create folder" in q or "criar pasta" in q or "create directory" in q or "nova pasta" in q:
+            name_match = re.search(r'(?:folder|pasta|directory|chamada|named)\s+[""]?(.+?)[""]?(?:\s|$)', q)
+            path_match = re.search(r'(?:em|in|at)\s+[""]?(.+?)[""]?(?:\s|$)', q)
+            name = name_match.group(1) if name_match else "new_folder"
+            path = path_match.group(1) if path_match else "."
+            return tools.create_folder(path, name)
+
+        if "rename" in q or "renomear" in q:
+            match = re.search(r'(?:rename|renomear)\s+[""]?(.+?)[""]?\s+(?:to|para)\s+[""]?(.+?)[""]?$', q)
+            if match:
+                return tools.rename_item(match.group(1).strip(), match.group(2).strip())
+
+        if any(w in q for w in ["move file", "mover", "move item", "move folder"]):
+            match = re.search(r'(?:move|mover)\s+[""]?(.+?)[""]?\s+(?:to|para)\s+[""]?(.+?)[""]?$', q)
+            if match:
+                return tools.move_item(match.group(1).strip(), match.group(2).strip())
+
+        if "delete file" in q or "apagar" in q or "delete item" in q:
+            match = re.search(r'(?:delete|apagar)\s+(?:file|ficheiro|item|folder|pasta)?\s*[""]?(.+?)[""]?$', q)
+            if match:
+                path = match.group(1).strip()
+                if path and path not in ("file", "ficheiro", "item", "folder", "pasta"):
+                    return tools.delete_item(path)
+
         return None
 
     # ── Streaming response ────────────────────────────────────────────────

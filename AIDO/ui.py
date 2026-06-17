@@ -504,6 +504,7 @@ class AIDOApp(ctk.CTk):
 
         from brain import AIDOBrain
         self.brain = AIDOBrain()
+        self.overlay = AIDOOverlay(self, color_mode="cyan")
         self.requires_wake_word = True
         self.last_active_time = 0
         self.timeout_seconds = 60
@@ -615,6 +616,8 @@ class AIDOApp(ctk.CTk):
             ("🖥  SYSTEM", "system info"),
             ("📝  NOTE", "save note: "),
             ("🧮  CALC", "calc "),
+            ("🚀  APP", "open app "),
+            ("📁  FILES", "list folder "),
             ("🗑  CLEAR", "__clear__"),
         ]
         for label, cmd in quick_actions:
@@ -635,7 +638,7 @@ class AIDOApp(ctk.CTk):
 
         self.status_dot = ctk.CTkLabel(status_bar, text="◉", font=("Courier New", 9), text_color=TEXT_DIM)
         self.status_dot.pack(side="left", padx=(12, 4))
-        self.status_label = ctk.CTkLabel(status_bar, text="STANDBY", font=("Courier New", 9), text_color=TEXT_DIM)
+        self.status_label = ctk.CTkLabel(status_bar, text="◈  STANDBY  ◈", font=("Courier New", 9), text_color=TEXT_DIM)
         self.status_label.pack(side="left")
         ctk.CTkLabel(status_bar, text="v1.0.0  ◈  AIDO CORE",
                      font=("Courier New", 9), text_color=TEXT_DIM).pack(side="right", padx=12)
@@ -666,6 +669,7 @@ class AIDOApp(ctk.CTk):
     def start_aido_stream(self):
         self.streaming_buffer = ""
         self.neural.set_state("thinking")
+        self.overlay.show("cyan")
         self.chat_box.configure(state="normal")
         self.chat_box.insert("end", "\naido  ◈\n", "label_aido")
         self.chat_box.configure(state="disabled")
@@ -679,6 +683,7 @@ class AIDOApp(ctk.CTk):
 
     def finish_aido_stream(self):
         self.neural.set_state("online")
+        self.overlay.hide()
         self.chat_box.configure(state="normal")
         self.chat_box.insert("end", "\n", "aido")
         self.chat_box.configure(state="disabled")
@@ -861,9 +866,13 @@ class AIDOApp(ctk.CTk):
             self._on_action_result(pc_actions.open_browser(arg or ""))
         elif action == "confirm_browser":
             self.after(0, lambda: ConfirmBrowserWindow(self, self._on_action_result, arg))
+        elif action == "open_app":
+            from tools import launch_app
+            result = launch_app(arg or "")
+            self._on_action_result(result)
         else:
             self.after(0, lambda: ConfirmActionWindow(self, self._on_action_result,
-                                                      default_action=action, default_arg=arg))
+                                                       default_action=action, default_arg=arg))
 
 
 if __name__ == "__main__":
