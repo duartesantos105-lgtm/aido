@@ -360,7 +360,7 @@ class ConfirmActionWindow(ctk.CTkToplevel):
         self.frame.pack(padx=12, pady=12, fill="both", expand=True)
 
         ctk.CTkLabel(self.frame, text="Select action:", text_color=TEXT_DIM).pack(anchor="w", pady=(6, 2))
-        self.action_var = ctk.CTkComboBox(self.frame, values=list(pc_actions.ALLOWED_ACTIONS.keys()))
+        self.action_var = ctk.CTkComboBox(self.frame, values=list(pc_actions.ALLOWED_ACTIONS.keys()) if pc_actions.ALLOWED_ACTIONS else ["(no actions available)"])
         keys = list(pc_actions.ALLOWED_ACTIONS.keys())
         self.action_var.set(self.default_action if self.default_action in keys else (keys[0] if keys else ""))
         self.action_var.pack(fill="x", pady=(0, 6))
@@ -424,7 +424,7 @@ class ConfirmBrowserWindow(ctk.CTkToplevel):
         ctk.CTkButton(btn_frame, text="Open Browser", command=self._confirm, width=160).pack(side="right", padx=6)
 
     def _confirm(self):
-        result = pc_actions.open_browser("")
+        result = pc_actions.open_browser(self.browser_name, use_opera=(self.browser_name.lower() == "opera gx" or self.browser_name.lower() == "opera"))
         try:
             self.on_complete(result)
         except Exception:
@@ -606,6 +606,28 @@ class AIDOApp(ctk.CTk):
 
         GlowSep(self.container, color=ACCENT3).pack(fill="x")
 
+        # Quick actions
+        self.quick_frame = ctk.CTkFrame(self.container, corner_radius=0, fg_color=BG, height=38)
+        self.quick_frame.pack(fill="x")
+        self.quick_frame.pack_propagate(False)
+
+        quick_actions = [
+            ("🖥  SYSTEM", "system info"),
+            ("📝  NOTE", "save note: "),
+            ("🧮  CALC", "calc "),
+            ("🗑  CLEAR", "__clear__"),
+        ]
+        for label, cmd in quick_actions:
+            btn = ctk.CTkButton(self.quick_frame, text=label,
+                                font=("Courier New", 9, "bold"),
+                                fg_color=BG3, hover_color=BG4, text_color=TEXT_MID,
+                                corner_radius=8, height=26, width=90,
+                                border_width=1, border_color=ACCENT4,
+                                command=lambda c=cmd: self._quick_action(c))
+            btn.pack(side="left", padx=(6, 0), pady=6)
+
+        GlowSep(self.container, color=ACCENT3).pack(fill="x")
+
         # Status bar
         status_bar = ctk.CTkFrame(self.container, fg_color=BG, corner_radius=0, height=26)
         status_bar.pack(fill="x")
@@ -691,6 +713,24 @@ class AIDOApp(ctk.CTk):
             self.add_system_message(result)
             return True
         return False
+
+    def _quick_action(self, action: str):
+        """Handle quick action button presses."""
+        if action == "__clear__":
+            self.clear_chat()
+            return
+        self.input_field.delete(0, "end")
+        self.input_field.insert(0, action)
+        self.input_field.focus()
+
+    def clear_chat(self):
+        """Clear the chat history."""
+        self.chat_box.configure(state="normal")
+        self.chat_box.delete("1.0", "end")
+        self.chat_box.configure(state="disabled")
+        self.brain.conversation_history.clear()
+        self._msg_count = 0
+        self.add_system_message("Chat cleared.")
 
     # ── Boot sequence ─────────────────────────────────────────────────────
 

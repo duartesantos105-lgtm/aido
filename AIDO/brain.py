@@ -10,7 +10,6 @@ from mem0 import MemoryClient
 import tools
 
 BRAIN_DIR = Path(__file__).parent
-load_dotenv(BRAIN_DIR / ".env")
 load_dotenv(BRAIN_DIR.parent / ".env")
 
 FACTS_FILE = BRAIN_DIR / "user_facts.json"
@@ -183,6 +182,52 @@ class AIDOBrain:
                     return tools.read_local_file(name)
         return None
 
+    def check_for_system_tools(self, query):
+        """Detect system info, notes, clipboard, calculator requests."""
+        q = query.lower()
+
+        # System info
+        if any(w in q for w in ["system info", "system information", "specs", "especificações"]):
+            return tools.system_info()
+        if any(w in q for w in ["cpu usage", "cpu %", "cpu percent", "uso do cpu", "uso cpu"]):
+            return tools.cpu_usage()
+        if any(w in q for w in ["ram usage", "ram %", "ram percent", "uso de ram", "uso ram", "memória"]):
+            return tools.ram_usage()
+
+        # Notes
+        if q.startswith("save note") or q.startswith("guardar nota") or q.startswith("note:"):
+            parts = q.split(":", 1) if ":" in q else q.split(None, 2)
+            if len(parts) >= 3:
+                title = parts[2].split()[0] if len(parts) == 3 else parts[1].strip()
+                content = query[query.index(title) + len(title):].strip()
+                return tools.note_save(title, content)
+        if "read note" in q or "ler nota" in q or "show note" in q:
+            for word in q.split():
+                if word not in ("read", "note", "ler", "nota", "show", "my", "a", "o", "a"):
+                    return tools.note_read(word.capitalize())
+            return tools.note_list()
+        if any(w in q for w in ["list notes", "listar notas", "my notes", "minhas notas"]):
+            return tools.note_list()
+        if "delete note" in q or "apagar nota" in q or "remover nota" in q:
+            for word in q.split():
+                if word not in ("delete", "note", "apagar", "nota", "remover", "the"):
+                    return tools.note_delete(word.capitalize())
+
+        # Clipboard
+        if any(w in q for w in ["clipboard read", "read clipboard", "ler clipboard", "ler area de transferencia", "o que tem no clipboard", "what is on clipboard", "clipboard content"]):
+            return tools.clipboard_get()
+        if any(w in q for w in ["copy to clipboard", "copiar para clipboard", "clipboard write", "clipboard set", "copiar"]):
+            match = re.search(r'(?:clipboard|copy|copiar)\s*(?:to|for|para)?\s*(?:clipboard)?\s*[""](.+?)[""]', query, re.IGNORECASE)
+            if match:
+                return tools.clipboard_set(match.group(1))
+
+        # Calculator
+        calc_match = re.search(r'(?:calculate|calc|calcula|calcular|quanto e|quanto é)\s+(.+?)$', q)
+        if calc_match:
+            return tools.calculate(calc_match.group(1))
+
+        return None
+
     # ── Streaming response ────────────────────────────────────────────────
 
     def stream_response(self, command, on_token_callback, on_complete_callback,
@@ -233,6 +278,7 @@ class AIDOBrain:
                 memory_context = self.get_memory_context(command)
                 search_context = self.check_for_search(command)
                 file_context = self.check_for_file_read(command)
+                tool_context = self.check_for_system_tools(command)
 
                 # Build system message from all context sections
                 parts = [self.system_prompt, "\n\n### Personality Guidelines\n", self.personality_context]
@@ -252,6 +298,9 @@ class AIDOBrain:
                 if file_context:
                     parts.extend(["\n\n### File Contents Retrieved\n", file_context,
                                   "\nAnalyze this code. If you see a flaw, you have permission to rewrite it using your [CODE_UPDATE:] tag."])
+                if tool_context:
+                    parts.extend(["\n\n### Tool Result\n", tool_context,
+                                  "\nUse the above information to answer the user."])
 
                 parts.append("\n\n### Current Session\nMaintain character. Never output 'AIDO:'.")
                 system_message = "".join(parts)

@@ -125,9 +125,6 @@ def open_browser(url: str, use_opera: bool = False) -> str:
             return f"Opened browser to {url}"
         webbrowser.open_new_tab("about:blank")
         return "Opened browser (blank tab)"
-    except Exception:
-        webbrowser.open("https://www.google.com")
-        return "Opened browser (default page)"
     except Exception as e:
         return f"Failed to open browser: {e}"
 
@@ -160,7 +157,7 @@ def run_script(path: str) -> str:
 def restart_app() -> str:
     """Restart the AIDO application."""
     try:
-        os.execv(sys.executable, [sys.executable, str(PROJECT_ROOT / "ui.py")])
+        os.execv(sys.executable, [sys.executable, str(PROJECT_ROOT.parent / "aido.py")])
     except Exception as e:
         return f"Failed to restart app: {e}"
 

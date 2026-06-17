@@ -19,6 +19,12 @@ Thumbs.db
 # Local user facts
 user_facts.json
 
+# User notes
+notes.json
+
+# RBAC configuration (user-role mappings)
+roles_config.json
+
 # IDE/editor files
 .vscode/
 .idea/
