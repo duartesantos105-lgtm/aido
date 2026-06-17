@@ -35,7 +35,7 @@ class AIDOBrain:
 
         self.memory = None
         self.conversation_history = []
-        self.max_history_turns = 10
+        self.max_history_turns = 1000
 
         self.search_triggers = [
             "who is", "what is", "latest", "news", "current",
