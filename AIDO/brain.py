@@ -274,7 +274,7 @@ class AIDOBrain:
                     token = chunk.choices[0].delta.content or ""
                     if token:
                         buffer += token
-                        if "[SELF_CORRECT:" not in buffer and "[CODE_UPDATE:" not in buffer:
+                        if "[SELF_CORRECT:" not in buffer and "[CODE_UPDATE:" not in buffer and "[SAVE_MEMORY:" not in buffer:
                             on_token_callback(token)
 
                 # ── Handle SELF_CORRECT tag ──────────────────────────
