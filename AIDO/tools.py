@@ -3,12 +3,16 @@ import os
 import re
 import json
 import math
-import subprocess
 import platform
 import shutil
 import datetime
 import requests
 from pathlib import Path
+
+try:
+    import psutil
+except ImportError:
+    psutil = None
 
 TOOLS_DIR = Path(__file__).parent
 NOTES_FILE = TOOLS_DIR / "notes.json"
