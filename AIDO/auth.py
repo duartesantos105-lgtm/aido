@@ -5,6 +5,7 @@ import uuid
 import platform
 import subprocess
 from pathlib import Path
+from typing import Optional
 
 try:
     from deepface import DeepFace
@@ -15,6 +16,16 @@ try:
     import cv2
 except Exception:
     cv2 = None
+
+try:
+    from roles import (
+        Role, UserContext, get_access_control, AccessDeniedError
+    )
+except ImportError:
+    # Se roles.py não estiver disponível, criar stubs
+    Role = None
+    UserContext = None
+    AccessDeniedError = Exception
 
 def get_machine_id():
     """Gera um ID único baseado no hardware do PC."""
@@ -150,13 +161,96 @@ def add_user(username: str, password: str) -> bool:
     with open(path, "r") as f:
         data = json.load(f)
     
+    if username.lower() in data["users"]:
+        return False  # Usuário já existe
+    
     salt = data["salt"]
     data["users"][username.lower()] = hash_password(password, salt)
     
     with open(path, "w") as f:
         json.dump(data, f, indent=2)
     
+    # Adicionar ao sistema de roles com Role padrão (USER)
+    if Role is not None:
+        from roles import get_access_control
+        acm = get_access_control()
+        acm.set_user_role(username, Role.USER)
+    
     return True
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# ROLE-BASED ACCESS INTEGRATION
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def set_user_role(username: str, role: Role) -> bool:
+    """Define o role de um usuário — requer ser admin."""
+    if Role is None:
+        return False
+    
+    try:
+        from roles import get_access_control
+        acm = get_access_control()
+        acm.set_user_role(username, role)
+        return True
+    except Exception:
+        return False
+
+
+def get_user_role(username: str) -> Optional[str]:
+    """Obtém o role de um usuário."""
+    if Role is None:
+        return None
+    
+    try:
+        from roles import get_access_control
+        acm = get_access_control()
+        role = acm.get_user_role(username)
+        return role.name if role else None
+    except Exception:
+        return None
+
+
+def login_with_role(username: str, password: str) -> Optional[UserContext]:
+    """
+    Faz login e retorna UserContext com permissões.
+    Retorna None se falhar.
+    """
+    if UserContext is None:
+        return None
+    
+    # Verificar credenciais
+    if not verify_login(username, password):
+        return None
+    
+    try:
+        from roles import get_access_control
+        acm = get_access_control()
+        user_context = acm.login_user(username)
+        return user_context
+    except Exception:
+        return None
+
+
+def list_all_users() -> dict:
+    """Lista todos os usuários e seus roles."""
+    path = get_auth_path()
+    
+    if not path.exists():
+        return {}
+    
+    try:
+        with open(path, "r") as f:
+            data = json.load(f)
+        
+        users = {}
+        for username in data.get("users", {}).keys():
+            role = get_user_role(username)
+            users[username] = role or "USER"
+        
+        return users
+    except Exception:
+        return {}
 
 # Cria o ficheiro na primeira vez
 if not get_auth_path().exists():
